@@ -37,7 +37,7 @@ namespace CCTask.Compilers
 			this.pathToGcc = pathToGcc;
 		}
 
-		public bool Compile(string source, string output, string flags, string cflags, Func<IEnumerable<string>, string, bool> sourceHasChanged)
+		public bool Compile(string source, string output, string flags, string cflags, Func<IEnumerable<string>, string, bool> sourceHasChanged, out bool skipped)
 		{
 			// let's get all dependencies
 			string gccOutput;
@@ -46,13 +46,17 @@ namespace CCTask.Compilers
 			if(!Utilities.RunAndGetOutput(pathToGcc, mmargs, out gccOutput))
 			{
 				Logger.Instance.LogError(gccOutput);
+				skipped = false;
 				return false;
 			}
 			var dependencies = ParseGccMmOutput(gccOutput);
 			if(!sourceHasChanged(dependencies.Union(new [] { source }), output))
 			{
+				skipped = true;
 				return true;
 			}
+
+			skipped = false;
 			var ccargs = string.Format("\"{0}\" {2} {3} -c -o \"{1}\"", source, output, flags, cflags);
 			Logger.Instance.LogMessage("CC: {0}", Path.GetFileName(source));
 			Logger.Instance.LogVerbose("output: {0} flags: {1}", output, ccargs);
