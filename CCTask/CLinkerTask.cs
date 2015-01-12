@@ -1,6 +1,4 @@
-﻿using System;
-using Microsoft.Build.Utilities;
-using System.IO;
+﻿using Microsoft.Build.Utilities;
 using Microsoft.Build.Framework;
 using System.Linq;
 
@@ -22,6 +20,10 @@ namespace CCTask
 		{
 			Logger.Instance = new XBuildLogProvider(Log, Verbose); // TODO: maybe initialise statically; this put in constructor causes NRE 
 
+			if (!ObjectFiles.Any())
+			{
+				return true;
+			}
 
 			var ofiles = ObjectFiles.Select(x => x.ItemSpec);
 			// linking
