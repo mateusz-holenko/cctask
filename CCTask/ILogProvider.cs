@@ -28,6 +28,7 @@ namespace CCTask
 {
 	public interface ILogProvider
 	{
+		void LogVerbose(string message, params object[] parameters);
 		void LogMessage(string message, params object[] parameters);
 		void LogWarning(string message, params object[] parameters);
 		void LogError(string message, params object[] parameters);

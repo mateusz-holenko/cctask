@@ -36,6 +36,16 @@ namespace CCTask
 			this.verbose = verbose;
 		}
 
+		public void LogVerbose(string message, params object[] parameters)
+		{
+			if (!verbose)
+			{
+				return;
+			}
+
+			LogMessage(message, parameters);
+		}
+
 		public void LogMessage(string message, params object[] parameters)
 		{
 			lock(sync)
