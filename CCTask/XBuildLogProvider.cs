@@ -29,10 +29,11 @@ namespace CCTask
 {
 	public sealed class XBuildLogProvider : ILogProvider
 	{
-		public XBuildLogProvider(TaskLoggingHelper log)
+		public XBuildLogProvider(TaskLoggingHelper log, bool verbose = false)
 		{
 			this.log = log;
 			sync = new object();
+			this.verbose = verbose;
 		}
 
 		public void LogMessage(string message, params object[] parameters)
@@ -61,6 +62,7 @@ namespace CCTask
 
 		private readonly TaskLoggingHelper log;
 		private readonly object sync;
+		private readonly bool verbose;
 	}
 }
 
