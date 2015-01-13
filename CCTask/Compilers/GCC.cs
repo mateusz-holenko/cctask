@@ -37,7 +37,7 @@ namespace CCTask.Compilers
 			this.pathToGcc = pathToGcc;
 		}
 
-		public bool Compile(string source, string output, string flags, string cflags, Func<IEnumerable<string>, string, bool> sourceHasChanged, out bool skipped)
+		public bool Compile(string source, string output, string flags, string cflags, Func<IEnumerable<string>, bool> sourceHasChanged, out bool skipped)
 		{
 			// let's get all dependencies
 			string gccOutput;
@@ -49,8 +49,8 @@ namespace CCTask.Compilers
 				skipped = false;
 				return false;
 			}
-			var dependencies = ParseGccMmOutput(gccOutput);
-			if(!sourceHasChanged(dependencies.Union(new [] { source }), output))
+			var dependencies = ParseGccMmOutput(gccOutput).Union(new [] { source });
+			if(!sourceHasChanged(dependencies))
 			{
 				skipped = true;
 				return true;
