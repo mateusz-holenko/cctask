@@ -50,7 +50,7 @@ namespace CCTask.Compilers
 				return false;
 			}
 			var dependencies = ParseGccMmOutput(gccOutput).Union(new [] { source });
-			if(!sourceHasChanged(dependencies))
+			if(!sourceHasChanged(dependencies) && File.Exists(output))
 			{
 				skipped = true;
 				return true;
