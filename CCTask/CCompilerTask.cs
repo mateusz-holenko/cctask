@@ -39,6 +39,8 @@ namespace CCTask
 		[Output]
 		public ITaskItem[] ObjectFiles { get; set; }
 
+		public string ObjectFilesDirectory { get; set; }
+
 		public ITaskItem[] CompilationFlags   { get; set; }
 		public ITaskItem[] ConfigurationFlags { get; set; }
 
@@ -56,8 +58,9 @@ namespace CCTask
 				var regex = new Regex(@"\.c$");
 				var configurationFlags = ConfigurationFlags.Aggregate(string.Empty, (curr, next) => string.Format("{0} {1}", curr, next.ItemSpec));
 				var compilationFlags = CompilationFlags.Aggregate(string.Empty, (curr, next) => string.Format("{0} {1}", curr, next.ItemSpec));
-				var compilationResult = System.Threading.Tasks.Parallel.ForEach(Sources.Select(x => x.ItemSpec), (source, loopState) => {
-					var objectFile = regex.Replace(source, ".o");
+				var compilationResult = System.Threading.Tasks.Parallel.ForEach(Sources.Select(x => x.ItemSpec), (source, loopState) => 
+				{
+					var objectFile = ObjectFilesDirectory == null ? regex.Replace(source, ".o") : string.Format("{0}/{1}", ObjectFilesDirectory, regex.Replace(source, ".o"));
 					bool skipped;
 					if (!compiler.Compile(source, objectFile, configurationFlags, compilationFlags, cache.SourceHasChanged, out skipped))
 					{
