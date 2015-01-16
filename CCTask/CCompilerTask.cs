@@ -28,6 +28,7 @@ using Microsoft.Build.Utilities;
 using Microsoft.Build.Framework;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using CCTask.Compilers;
 
 namespace CCTask
 {
@@ -46,6 +47,19 @@ namespace CCTask
 
 		public bool Verbose { get; set; }
 
+		public bool Parallel { get; set; }
+
+		public CCompilerTask()
+		{
+			Parallel = true;
+
+			compiler = CompilerProvider.Instance.CCompiler;
+			regex = new Regex(@"\.c$");
+
+			configurationFlags = (ConfigurationFlags != null && ConfigurationFlags.Any()) ? ConfigurationFlags.Aggregate(string.Empty, (curr, next) => string.Format("{0} {1}", curr, next.ItemSpec)) : string.Empty;
+			compilationFlags = (CompilationFlags != null && CompilationFlags.Any()) ? CompilationFlags.Aggregate(string.Empty, (curr, next) => string.Format("{0} {1}", curr, next.ItemSpec)) : string.Empty;
+		}
+
 		public override bool Execute()
 		{
 			Logger.Instance = new XBuildLogProvider(Log, Verbose); // TODO: maybe initialise statically
@@ -53,31 +67,28 @@ namespace CCTask
 			using (var cache = new FileCacheManager(ObjectFilesDirectory))
 			{
 				var objectFiles = new List<string>();
-
-				var compiler = CompilerProvider.Instance.CCompiler;
-				var regex = new Regex(@"\.c$");
-				var configurationFlags = (ConfigurationFlags != null && ConfigurationFlags.Any()) ? ConfigurationFlags.Aggregate(string.Empty, (curr, next) => string.Format("{0} {1}", curr, next.ItemSpec)) : string.Empty;
-				var compilationFlags = (CompilationFlags != null && CompilationFlags.Any()) ? CompilationFlags.Aggregate(string.Empty, (curr, next) => string.Format("{0} {1}", curr, next.ItemSpec)) : string.Empty;
-				var compilationResult = System.Threading.Tasks.Parallel.ForEach(Sources.Select(x => x.ItemSpec), (source, loopState) => 
+				if (Parallel)
 				{
-					var objectFile = ObjectFilesDirectory == null ? regex.Replace(source, ".o") : string.Format("{0}/{1}", ObjectFilesDirectory, regex.Replace(source, ".o"));
-					bool skipped;
-					if (!compiler.Compile(source, objectFile, configurationFlags, compilationFlags, cache.SourceHasChanged, out skipped))
-					{
-						loopState.Break();
-					}
-
-					if (!skipped)
-					{
-						lock (objectFiles)
+					var compilationResult = System.Threading.Tasks.Parallel.ForEach(Sources.Select(x => x.ItemSpec), (source, loopState) => {
+						if(!CompileSingleFile(source, objectFiles, cache))
 						{
-							objectFiles.Add(objectFile);
+							loopState.Break();
+						}
+					});
+					if (compilationResult.LowestBreakIteration != null)
+					{
+						return false;
+					}
+				}
+				else
+				{
+					foreach (var source in Sources.Select(x => x.ItemSpec))
+					{
+						if (!CompileSingleFile(source, objectFiles, cache))
+						{
+							return false;
 						}
 					}
-				});
-				if (compilationResult.LowestBreakIteration != null)
-				{
-					return false;
 				}
 
 				ObjectFiles = objectFiles.Any() ? objectFiles.Select(x => new TaskItem(x)).ToArray() : new TaskItem[0];
@@ -85,6 +96,31 @@ namespace CCTask
 				return true;
 			}
 		}
+
+		private bool CompileSingleFile(string source, List<string> objectFiles, FileCacheManager cache)
+		{
+			var objectFile = ObjectFilesDirectory == null ? regex.Replace(source, ".o") : string.Format("{0}/{1}", ObjectFilesDirectory, regex.Replace(source, ".o"));
+			bool skipped;
+			if (!compiler.Compile(source, objectFile, configurationFlags, compilationFlags, cache.SourceHasChanged, out skipped))
+			{
+				return false;
+			}
+
+			if (!skipped)
+			{
+				lock (objectFiles)
+				{
+					objectFiles.Add(objectFile);
+				}
+			}
+
+			return true;
+		}
+
+		private readonly string configurationFlags;
+		private readonly string compilationFlags;
+		private readonly Regex regex;
+		private readonly ICompiler compiler;
 	}
 }
 
